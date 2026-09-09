@@ -5,7 +5,7 @@
 | Concern | System of record |
 |---|---|
 | Database change intent/source | Git (`cr7allgoals-db`) |
-| Review and release decision | GitHub pull request + Bytebase SQL Review/release |
+| Review and release decision | GitHub pull request + Jenkins pipeline + Bytebase SQL Review/release |
 | Applied migration history | Bytebase revision/change history |
 | Actual database state | Oracle schema `CR7ALLGOALS_APP` |
 | Recovery state | Oracle backup/Flashback/PITR and DBA recovery process |
@@ -32,9 +32,9 @@ revision history.
 
 ## Platform experience
 
-Platform owns Bytebase availability, GitHub integration, service account lifecycle,
+Platform owns Bytebase availability, Jenkins/GitHub integration, service account lifecycle,
 network connectivity, protected variables, environment/target mapping, and
-observability. GitHub Actions calls Bytebase; GitHub Actions does not connect to Oracle.
+observability. Jenkins calls Bytebase; Jenkins does not connect to Oracle.
 
 ## Version and promotion
 
@@ -74,9 +74,9 @@ automatic drift detection and remediation is a remaining gap.
 1. Every DB change is a new timestamped SQL file in Git.
 2. One logical change per file; use `_ddl` or `_dml` accurately.
 3. Never edit an applied migration; create a follow-up migration.
-4. Review happens in the pull request and risk approval in Bytebase.
+4. Review happens in the pull request/Jenkins pipeline and risk approval in Bytebase.
 5. Promote the same release/SHA; do not copy or alter SQL per environment.
-6. Never put Oracle credentials in GitHub Actions or source control.
+6. Never put Oracle credentials in Jenkins or source control.
 7. Application rollback and database recovery are separate decisions.
 8. Emergency direct SQL always gets reconciled back into Git and Bytebase history.
 

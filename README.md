@@ -8,15 +8,15 @@ Database change source for CR7 All Goals Oracle, operated through Bytebase Commu
 2. Put one logical change in it. Use Oracle SQL and prefix POC objects with `BB_POC_`.
 3. Add recovery notes under `recovery/<version>/recovery.md`.
 4. Commit on a feature branch and open a GitHub pull request.
-5. SQL Review runs against the changed migration files. Fix failures before merge.
-6. After approval, merge. CI creates a Bytebase database release and rolls it out to DEV.
+5. Jenkins runs Bytebase SQL Review against the changed migration files. Fix failures before merge.
+6. After approval, merge. Jenkins creates a Bytebase database release and rolls it out to DEV.
 7. The DBA/governance gate promotes that same release to later environments.
 
 An applied migration is immutable. If it needs changing, create a later migration. Do not edit, rename, or delete the applied file. Developers do not need an Oracle password, `sqlplus`, or direct database access.
 
 ## DBA: review and operate
 
-Review the pull request and Bytebase release for SQL, risk, locking, table size, compatibility, data loss, timing, backup/PITR requirements, and recovery classification. Bytebase provides SQL Review, release/rollout control, execution status, and revision/change history. The Oracle credential is owned and rotated by DBA/platform; it is stored in Bytebase, never in Git or GitHub Actions.
+Review the pull request and Bytebase release for SQL, risk, locking, table size, compatibility, data loss, timing, backup/PITR requirements, and recovery classification. Bytebase provides SQL Review, release/rollout control, execution status, and revision/change history. The Oracle credential is owned and rotated by DBA/platform; it is stored in Bytebase, never in Git or Jenkins.
 
 The promoted unit is a Bytebase database release: Git commit SHA plus the ordered migration set. The same bytes and SHA move DEV → SIT → STAGING → UAT → PROD. Environment-specific database data is an exception and must be an explicitly scoped, separately reviewed artifact; application/Kubernetes configuration belongs outside this repository.
 

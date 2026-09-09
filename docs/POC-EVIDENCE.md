@@ -9,7 +9,7 @@ fields are intentional; they are not evidence.
 | SQL Review pull request | PASSED | Temporary PR #2; result count 5; authentication and PR annotation passed |
 | Release after merge | OBSERVED | `release_20260909-RC05`; Git SHA `c30008ac5263d21897ab530f56153425ac7d4dc0`; 5 migration files |
 | DEV plan | OBSERVED | Plan `106`; target stage `environments/test`; target `oracle / CR7ALLGOALS_APP` |
-| DEV rollout | SUCCEEDED | [GitHub Actions run 34332877516](https://github.com/devsecopslonghn/cr7allgoals-db/actions/runs/34332877516); one task; Bytebase stage completed |
+| DEV rollout | SUCCEEDED | Initial run via [GitHub Actions 34332877516](https://github.com/devsecopslonghn/cr7allgoals-db/actions/runs/34332877516); one task; Bytebase stage completed. Current CI source is `Jenkinsfile`; Jenkins execution is not yet captured. |
 | Oracle revision/history | NOT RUN | revision ID, checksum/content link, schema snapshot if exposed |
 | Oracle objects | ROLLOUT SUCCEEDED; QUERY NOT CAPTURED | `BB_POC_RELEASE_FLOW`, `BB_POC_RELEASE_FLOW_V` and verification query output |
 | Second environment | NOT DEMONSTRATED | same release/SHA and target; no SQL mutation |
