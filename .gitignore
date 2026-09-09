@@ -1,0 +1,8 @@
+# No credentials, wallets, dumps, or local Bytebase state.
+*.env
+*.pem
+*.key
+*.wallet
+*.zip
+*.dmp
+*.log
