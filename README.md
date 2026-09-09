@@ -7,7 +7,7 @@ Database change source for CR7 All Goals Oracle, operated through Bytebase Commu
 1. Create a new file in `migrations/` using `YYYYMMDDHHmmss_description_ddl.sql` or `_dml.sql`.
 2. Put one logical change in it. Use Oracle SQL and prefix POC objects with `BB_POC_`.
 3. Add recovery notes under `recovery/<version>/recovery.md`.
-4. Commit on a feature branch and open a GitLab MR.
+4. Commit on a feature branch and open a GitHub pull request.
 5. SQL Review runs against the changed migration files. Fix failures before merge.
 6. After approval, merge. CI creates a Bytebase database release and rolls it out to DEV.
 7. The DBA/governance gate promotes that same release to later environments.
@@ -16,7 +16,7 @@ An applied migration is immutable. If it needs changing, create a later migratio
 
 ## DBA: review and operate
 
-Review the MR and Bytebase release for SQL, risk, locking, table size, compatibility, data loss, timing, backup/PITR requirements, and recovery classification. Bytebase provides SQL Review, release/rollout control, execution status, and revision/change history. The Oracle credential is owned and rotated by DBA/platform; it is stored in Bytebase, never in Git or GitLab CI.
+Review the pull request and Bytebase release for SQL, risk, locking, table size, compatibility, data loss, timing, backup/PITR requirements, and recovery classification. Bytebase provides SQL Review, release/rollout control, execution status, and revision/change history. The Oracle credential is owned and rotated by DBA/platform; it is stored in Bytebase, never in Git or GitHub Actions.
 
 The promoted unit is a Bytebase database release: Git commit SHA plus the ordered migration set. The same bytes and SHA move DEV → SIT → STAGING → UAT → PROD. Environment-specific database data is an exception and must be an explicitly scoped, separately reviewed artifact; application/Kubernetes configuration belongs outside this repository.
 

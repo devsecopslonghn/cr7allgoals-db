@@ -6,8 +6,7 @@ The existing CR7 database workflow is application-owned: the backend package
 contains foundation/provider SQL and a Node migration runner with checksums,
 status, statement progress, and `DBMS_LOCK`; the Helm chart has an opt-in
 migration Job using an external Oracle Secret. No existing Flyway/Liquibase source
-was found. Existing CR7 repositories are GitHub repositories on `master`; a
-GitLab host/group was not available in the local discovery evidence.
+was found. Existing CR7 repositories are GitHub repositories on `master`.
 
 ## 2. Architecture decisions
 
@@ -16,15 +15,15 @@ Bytebase workflow, flat `migrations/*.sql` layout, numeric UTC timestamps, and
 explicit `_ddl`/`_dml` suffixes. This is documented in the [decision gate](../DATABASE-SOURCE-DECISION.md).
 
 Bytebase's official migration-based documentation defines `<Version>_<Description>.sql`,
-supports timestamp versions, and documents `ddl`/`dml` suffixes. Its GitLab
-tutorial uses `migrations/*.sql` and the three stages develop → review → release.
+supports timestamp versions, and documents `ddl`/`dml` suffixes. Its GitHub
+tutorial documents the three stages develop → review → release.
 Oracle is listed as supported for GitOps and SQL review. State-based SDL is not
 selected because the documented current fit is PostgreSQL-oriented and does not
 cover DML as an imperative migration source.
 
 References: [Bytebase migration workflow](https://docs.bytebase.com/gitops/migration-based-workflow/overview),
 [file naming](https://docs.bytebase.com/gitops/migration-based-workflow/develop),
-[GitLab CI tutorial](https://docs.bytebase.com/tutorials/gitops-gitlab-workflow),
+[GitHub Actions tutorial](https://docs.bytebase.com/tutorials/gitops-github-workflow),
 [supported databases](https://docs.bytebase.com/introduction/supported-databases),
 [change history](https://docs.bytebase.com/change-database/change-history).
 
@@ -46,7 +45,7 @@ release that carries a Git SHA and ordered migration set.
 
 ## 4. Operating model
 
-Developers author source and recovery notes, open an MR, and fix SQL Review
+Developers author source and recovery notes, open a pull request, and fix SQL Review
 failures. DBA reviews risk and controls governed rollout. Platform owns Bytebase,
 connectivity, service account and protected variables. Bytebase executes against
 Oracle and records release/rollout/task/revision history. Oracle remains the live

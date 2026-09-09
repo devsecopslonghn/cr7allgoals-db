@@ -5,7 +5,7 @@
 | Concern | System of record |
 |---|---|
 | Database change intent/source | Git (`cr7allgoals-db`) |
-| Review and release decision | GitLab MR + Bytebase SQL Review/release |
+| Review and release decision | GitHub pull request + Bytebase SQL Review/release |
 | Applied migration history | Bytebase revision/change history |
 | Actual database state | Oracle schema `CR7ALLGOALS_APP` |
 | Recovery state | Oracle backup/Flashback/PITR and DBA recovery process |
@@ -16,7 +16,7 @@ release metadata, and recovery state answer different questions.
 ## Developer experience
 
 Create one timestamped migration, add recovery notes, run/test locally when
-available, open an MR, and respond to SQL Review. Merge is the hand-off point to
+available, open a pull request, and respond to SQL Review. Merge is the hand-off point to
 the database release process. An applied file is immutable forever. A developer
 does not use `sqlplus`, ask a DBA to copy a chat attachment, or receive an Oracle
 password.
@@ -32,9 +32,9 @@ revision history.
 
 ## Platform experience
 
-Platform owns Bytebase availability, GitLab integration, service account lifecycle,
+Platform owns Bytebase availability, GitHub integration, service account lifecycle,
 network connectivity, protected variables, environment/target mapping, and
-observability. GitLab calls Bytebase; GitLab CI does not connect to Oracle.
+observability. GitHub Actions calls Bytebase; GitHub Actions does not connect to Oracle.
 
 ## Version and promotion
 
@@ -74,9 +74,9 @@ automatic drift detection and remediation is a remaining gap.
 1. Every DB change is a new timestamped SQL file in Git.
 2. One logical change per file; use `_ddl` or `_dml` accurately.
 3. Never edit an applied migration; create a follow-up migration.
-4. Review happens in the MR and risk approval in Bytebase.
+4. Review happens in the pull request and risk approval in Bytebase.
 5. Promote the same release/SHA; do not copy or alter SQL per environment.
-6. Never put Oracle credentials in GitLab or source control.
+6. Never put Oracle credentials in GitHub Actions or source control.
 7. Application rollback and database recovery are separate decisions.
 8. Emergency direct SQL always gets reconciled back into Git and Bytebase history.
 
@@ -88,7 +88,7 @@ change needed                     database release
     ↓                                  ↓
 versioned SQL                     risk / approval
     ↓                                  ↓
-GitLab MR                         controlled rollout
+GitHub pull request               controlled rollout
     ↓                                  ↓
 SQL Review                        DEV → SIT → UAT → PROD
     ↓

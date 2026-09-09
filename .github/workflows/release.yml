@@ -1,0 +1,41 @@
+name: Database Release
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'migrations/*.sql'
+
+permissions:
+  contents: read
+
+env:
+  BYTEBASE_URL: https://bytebase.apps.drgdevlab.com
+  BYTEBASE_PROJECT: projects/cr7allgoals-db
+  BYTEBASE_FILE_PATTERN: migrations/*.sql
+
+jobs:
+  rollout-dev:
+    runs-on: ubuntu-latest
+    environment: dev
+    container: bytebase/bytebase-action:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Bytebase release and rollout DEV
+        env:
+          BYTEBASE_SERVICE_ACCOUNT: ${{ secrets.BYTEBASE_SERVICE_ACCOUNT }}
+          BYTEBASE_SERVICE_ACCOUNT_SECRET: ${{ secrets.BYTEBASE_SERVICE_ACCOUNT_SECRET }}
+          BYTEBASE_TARGETS: ${{ vars.BYTEBASE_TARGETS_DEV }}
+        run: >-
+          bytebase-action rollout
+          --url "$BYTEBASE_URL"
+          --service-account "$BYTEBASE_SERVICE_ACCOUNT"
+          --service-account-secret "$BYTEBASE_SERVICE_ACCOUNT_SECRET"
+          --project "$BYTEBASE_PROJECT"
+          --file-pattern "$BYTEBASE_FILE_PATTERN"
+          --targets "$BYTEBASE_TARGETS"
+
+# GitHub environment secrets contain only the Bytebase service account/key.
+# BYTEBASE_TARGETS_DEV is an environment variable. No Oracle credential belongs
+# in this repository or GitHub Actions.

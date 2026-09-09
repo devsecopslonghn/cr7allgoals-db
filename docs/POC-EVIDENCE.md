@@ -6,7 +6,7 @@ fields are intentional; they are not evidence.
 | Step | Status | Evidence to record |
 |---|---|---|
 | Bytebase target configured | NOT RUN | project, instance, database, schema, environment |
-| SQL Review MR | NOT RUN | MR URL, pipeline ID, review result, reviewer |
+| SQL Review pull request | NOT RUN | PR URL, workflow run ID, review result, reviewer |
 | Release after merge | NOT RUN | release name/ID, Git SHA, migration set |
 | DEV plan | NOT RUN | plan ID, target, rendered SQL |
 | DEV rollout | NOT RUN | rollout/task IDs, executor, start/end, status |
