@@ -7,4 +7,4 @@ production DML. The exact rule names are configured in the installed Bytebase
 workspace; this file is guidance for the DBA policy owner, not a replacement for
 the server-side policy.
 
-<!-- Temporary integration verification v3; no migration content changed. -->
+<!-- Temporary integration verification v4; no migration content changed. -->
