@@ -19,7 +19,7 @@ jobs:
   rollout-dev:
     runs-on: ubuntu-latest
     environment: dev
-    container: bytebase/bytebase-action:latest
+    container: bytebase/bytebase-action:3.22.1
     steps:
       - uses: actions/checkout@v4
       - name: Create Bytebase release and rollout DEV
