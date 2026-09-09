@@ -11,7 +11,7 @@ permissions:
 
 env:
   BYTEBASE_URL: https://bytebase.apps.drgdevlab.com
-  BYTEBASE_PROJECT: projects/cr7allgoals-db
+  BYTEBASE_PROJECT: projects/cr7goal
   BYTEBASE_FILE_PATTERN: migrations/*.sql
 
 jobs:
