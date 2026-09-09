@@ -43,7 +43,7 @@ jobs:
           BYTEBASE_SERVICE_ACCOUNT: ${{ secrets.BYTEBASE_SERVICE_ACCOUNT }}
           BYTEBASE_SERVICE_ACCOUNT_SECRET: ${{ secrets.BYTEBASE_SERVICE_ACCOUNT_SECRET }}
           BYTEBASE_PLAN: /tmp/bytebase-plan.txt
-          BYTEBASE_TARGET_STAGE: environments/dev
+          BYTEBASE_TARGET_STAGE: environments/test
         run: |
           jq -r '.plan' /tmp/bytebase-metadata.json > "$BYTEBASE_PLAN"
           bytebase-action rollout \
