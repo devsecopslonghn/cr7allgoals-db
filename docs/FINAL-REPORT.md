@@ -68,12 +68,16 @@ explicitly not fabricated here.
 
 Bytebase platform manifests are present in GitOps and pin chart `1.1.5` with
 Bytebase image `3.22.1`; the endpoint is configured as
-`https://bytebase.apps.drgdevlab.com`. No authenticated service account, Oracle
-target, pull request, release, rollout, task, executor, revision, or Oracle object creation
-was available to verify in this workspace. Therefore:
+`https://bytebase.apps.drgdevlab.com`. The authenticated GitHub Actions integration
+created release `release_20260909-RC05`, plan `106`, and completed one rollout task
+for `oracle / CR7ALLGOALS_APP` at stage `environments/test`. The successful workflow
+run is [34332877516](https://github.com/devsecopslonghn/cr7allgoals-db/actions/runs/34332877516).
+The Bytebase revision identifier and direct schema query output still need to be
+copied from the Bytebase task/history UI. Therefore:
 
 ```text
 PROMOTION MODEL DESIGNED
+DEV EXECUTION DEMONSTRATED
 MULTI-ENV EXECUTION NOT YET DEMONSTRATED
 ```
 

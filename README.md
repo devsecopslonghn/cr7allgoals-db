@@ -48,8 +48,8 @@ The current CR7 application runner in `cr7allgoals-be/packages/db` is existing a
 
 ## Evidence status
 
-`PROMOTION MODEL DESIGNED` / `MULTI-ENV EXECUTION NOT YET DEMONSTRATED`.
+`PROMOTION MODEL DESIGNED` / `DEV EXECUTION DEMONSTRATED` / `MULTI-ENV EXECUTION NOT YET DEMONSTRATED`.
 
-The workspace has Bytebase platform manifests and the DEV endpoint, but no authenticated Bytebase service account/Oracle target evidence was available to this implementation. No rollout or Oracle object creation is claimed by this repository. Record actual release, rollout, task, executor, timestamp, SQL, revision, and schema snapshot links in `docs/POC-EVIDENCE.md` after an authorized run.
+The DEV rollout is recorded in `docs/POC-EVIDENCE.md`. Multi-environment promotion remains untested. Record the Bytebase revision and schema verification query output there after reviewing the completed task.
 
 See [DATABASE-SOURCE-DECISION.md](../DATABASE-SOURCE-DECISION.md) for the gate and [OPERATING-MODEL.md](docs/OPERATING-MODEL.md) for the end-to-end model.
