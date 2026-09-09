@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - 'migrations/*.sql'
+  workflow_dispatch:
 
 permissions:
   contents: read
