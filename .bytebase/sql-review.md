@@ -6,3 +6,5 @@ unbounded UPDATE/DELETE, missing WHERE clauses, unsafe NOT NULL changes, and
 production DML. The exact rule names are configured in the installed Bytebase
 workspace; this file is guidance for the DBA policy owner, not a replacement for
 the server-side policy.
+
+<!-- Integration check: GitHub Actions to Bytebase SQL Review. -->
