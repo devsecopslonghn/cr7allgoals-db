@@ -23,7 +23,7 @@ password.
 
 ## DBA experience
 
-The DBA reviews the MR and Bytebase plan/release: exact SQL, target, ordering,
+The DBA reviews the pull request and Bytebase plan/release: exact SQL, target, ordering,
 locks, table size, compatibility, data loss, destructive impact, timing, backup
 and recovery. The DBA approves governed rollouts and owns Oracle credentials,
 backup/recovery, and emergency operations. Bytebase performs the controlled

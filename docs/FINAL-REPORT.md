@@ -69,7 +69,7 @@ explicitly not fabricated here.
 Bytebase platform manifests are present in GitOps and pin chart `1.1.5` with
 Bytebase image `3.22.1`; the endpoint is configured as
 `https://bytebase.apps.drgdevlab.com`. No authenticated service account, Oracle
-target, MR, release, rollout, task, executor, revision, or Oracle object creation
+target, pull request, release, rollout, task, executor, revision, or Oracle object creation
 was available to verify in this workspace. Therefore:
 
 ```text
