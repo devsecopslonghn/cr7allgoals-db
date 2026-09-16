@@ -22,6 +22,7 @@ pipeline {
         BYTEBASE_OUTPUT = '.jenkins/bytebase-metadata.json'
         BYTEBASE_TEST_STAGE = 'environments/test'
         BYTEBASE_PROD_STAGE = 'environments/prod'
+        GITHUB_API_URL = 'https://api.github.com'
     }
 
     stages {
@@ -79,9 +80,8 @@ pipeline {
             post {
                 always {
                     script {
-                        // Pipeline: GitHub uses the GitHubSCMSource credential
-                        // configured on the GitHub Organization. In this job that
-                        // credential is the GitHub App selected in the UI.
+                        // Bind the existing GitHub App credential. GitHub Branch
+                        // Source generates a short-lived API token for it.
                         if (env.CHANGE_ID) {
                             def reviewStatus = env.SQL_REVIEW_STATUS == '0' ? '✅ Passed' : '❌ Failed'
                             def reviewOutput = fileExists('.jenkins/sql-review.log')
@@ -105,7 +105,45 @@ ${reviewOutput}
 </details>
 """
 
-                            pullRequest.comment(commentBody)
+                            writeFile(file: '.jenkins/sql-review-comment.md', text: commentBody)
+
+                            withCredentials([
+                                usernamePassword(
+                                    credentialsId: 'devsecopslonghn',
+                                    usernameVariable: 'GITHUB_APP_ID',
+                                    passwordVariable: 'GITHUB_ACCESS_TOKEN'
+                                )
+                            ]) {
+                                sh '''#!/bin/sh
+                                    set -eu
+
+                                    repository="${GITHUB_REPOSITORY:-}"
+                                    if [ -z "$repository" ]; then
+                                        source_url="${CHANGE_URL:-${GIT_URL:-}}"
+                                        case "$source_url" in
+                                            git@github.com:*)
+                                                repository="${source_url#git@github.com:}"
+                                                ;;
+                                            https://*|http://*)
+                                                repository="$(printf '%s' "$source_url" | sed -E 's#^https?://[^/]+/##; s#/pull/[0-9]+/?$##')"
+                                                ;;
+                                        esac
+                                        repository="${repository%.git}"
+                                        repository="${repository%/}"
+                                    fi
+
+                                    test -n "$repository"
+                                    jq -Rs '{body: .}' .jenkins/sql-review-comment.md > .jenkins/sql-review-comment.json
+                                    curl --fail --silent --show-error --retry 3 \\
+                                      -X POST \\
+                                      "$GITHUB_API_URL/repos/$repository/issues/$CHANGE_ID/comments" \\
+                                      -H 'Accept: application/vnd.github+json' \\
+                                      -H 'X-GitHub-Api-Version: 2022-11-28' \\
+                                      -H "Authorization: Bearer $GITHUB_ACCESS_TOKEN" \\
+                                      -H 'Content-Type: application/json' \\
+                                      --data-binary @.jenkins/sql-review-comment.json
+                                '''
+                            }
                         }
                     }
                 }
