@@ -22,9 +22,6 @@ pipeline {
         BYTEBASE_OUTPUT = '.jenkins/bytebase-metadata.json'
         BYTEBASE_TEST_STAGE = 'environments/test'
         BYTEBASE_PROD_STAGE = 'environments/prod'
-
-        // Override this for GitHub Enterprise.
-        GITHUB_API_URL = 'https://api.github.com'
     }
 
     stages {
@@ -82,66 +79,33 @@ pipeline {
             post {
                 always {
                     script {
-                        // A Jenkins Multibranch PR build provides CHANGE_ID.
-                        // The token must have permission to create issue/PR comments.
-                        withCredentials([
-                            string(
-                                credentialsId: 'github-pr-comment-token',
-                                variable: 'GITHUB_TOKEN'
-                            )
-                        ]) {
-                            sh '''#!/bin/sh
-                                set -eu
+                        // Pipeline: GitHub uses the GitHubSCMSource credential
+                        // configured on the GitHub Organization. In this job that
+                        // credential is the GitHub App selected in the UI.
+                        if (env.CHANGE_ID) {
+                            def reviewStatus = env.SQL_REVIEW_STATUS == '0' ? '✅ Passed' : '❌ Failed'
+                            def reviewOutput = fileExists('.jenkins/sql-review.log')
+                                ? readFile('.jenkins/sql-review.log')
+                                : 'No review output was produced.'
 
-                                if [ "${SQL_REVIEW_STATUS:-1}" -eq 0 ]; then
-                                    review_status='✅ Passed'
-                                else
-                                    review_status='❌ Failed'
-                                fi
+                            if (reviewOutput.size() > 12000) {
+                                reviewOutput = reviewOutput.substring(reviewOutput.size() - 12000)
+                            }
 
-                                {
-                                    printf '%s\\n\\n' "## Bytebase SQL Review — $review_status"
-                                    printf '%s\\n' "- Project: \\`$BYTEBASE_PROJECT\\`"
-                                    printf '%s\\n' "- Jenkins build: ${BUILD_URL:-not available}"
-                                    printf '\\n<details><summary>Review output</summary>\\n\\n'
-                                    printf '%s\\n' '```text'
-                                    if [ -s .jenkins/sql-review.log ]; then
-                                        tail -c 12000 .jenkins/sql-review.log
-                                    else
-                                        printf '%s\\n' 'No review output was produced.'
-                                    fi
-                                    printf '\\n%s\\n' '```'
-                                    printf '%s\\n' '</details>'
-                                } > .jenkins/sql-review-comment.md
+                            def commentBody = """## Bytebase SQL Review — ${reviewStatus}
 
-                                repository="${GITHUB_REPOSITORY:-}"
-                                if [ -z "$repository" ]; then
-                                    source_url="${CHANGE_URL:-${GIT_URL:-}}"
-                                    case "$source_url" in
-                                        git@github.com:*)
-                                            repository="${source_url#git@github.com:}"
-                                            ;;
-                                        https://*|http://*)
-                                            repository="$(printf '%s' "$source_url" | sed -E 's#^https?://[^/]+/##; s#/pull/[0-9]+/?$##')"
-                                            ;;
-                                    esac
-                                    repository="${repository%.git}"
-                                    repository="${repository%/}"
-                                fi
+- Project: `${env.BYTEBASE_PROJECT}`
+- Jenkins build: ${env.BUILD_URL ?: 'not available'}
 
-                                test -n "$repository"
-                                test -n "${CHANGE_ID:-}"
+<details><summary>Review output</summary>
 
-                                jq -Rs '{body: .}' .jenkins/sql-review-comment.md > .jenkins/sql-review-comment.json
-                                curl --fail --silent --show-error --retry 3 \\
-                                  -X POST \\
-                                  "$GITHUB_API_URL/repos/$repository/issues/$CHANGE_ID/comments" \\
-                                  -H 'Accept: application/vnd.github+json' \\
-                                  -H 'X-GitHub-Api-Version: 2022-11-28' \\
-                                  -H "Authorization: Bearer $GITHUB_TOKEN" \\
-                                  -H 'Content-Type: application/json' \\
-                                  --data-binary @.jenkins/sql-review-comment.json
-                            '''
+```text
+${reviewOutput}
+```
+</details>
+"""
+
+                            pullRequest.comment(commentBody)
                         }
                     }
                 }
