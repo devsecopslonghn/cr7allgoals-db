@@ -140,7 +140,7 @@ pipeline {
                                         (.checkResults.results // [])[] as $result
                                         | ($result.advices // [])[]
                                         | select(.status == "ERROR" or .status == "WARNING")
-                                        | "<tr><td><code>\(($result.file // "-") | html)</code></td><td>\((.startPosition.line // .startPosition.lineNumber // "-") | html)</td><td><code>\((.status // "-") | severity | html)</code></td><td><code>\((.code // "-") | html)</code></td><td>\((.title // "-") | html)</td><td>\((.content // "-") | html)</td><td><code>\(($result.target // "-") | html)</code></td></tr>"
+                                        | "<tr><td><code>\\(($result.file // "-") | html)</code></td><td>\\((.startPosition.line // .startPosition.lineNumber // "-") | html)</td><td><code>\\((.status // "-") | severity | html)</code></td><td><code>\\((.code // "-") | html)</code></td><td>\\((.title // "-") | html)</td><td>\\((.content // "-") | html)</td><td><code>\\(($result.target // "-") | html)</code></td></tr>"
                                       ]
                                       | if length == 0 then
                                           "<p>No warning or error advice was returned.</p>"
