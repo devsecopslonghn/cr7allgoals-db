@@ -50,7 +50,7 @@ def buildBytebaseReviewSummary(String reviewJson, String project, String buildUr
             if (status == 'ERROR' || status == 'WARNING') {
                 def position = advice?.startPosition instanceof Map ? advice.startPosition : [:]
                 def line = position.line != null ? position.line : (position.lineNumber ?: '-')
-                details << [
+                details.add([
                     file: result?.file,
                     line: line,
                     severity: status == 'ERROR' ? '❌ Error' : '⚠️ Warning',
@@ -58,40 +58,40 @@ def buildBytebaseReviewSummary(String reviewJson, String project, String buildUr
                     title: advice?.title,
                     content: advice?.content,
                     target: result?.target
-                ]
+                ])
             }
         }
     }
 
     def summary = new StringBuilder()
-    summary << '# Bytebase SQL Review\n\n'
-    summary << "- Project: <code>${bytebaseHtml(project)}</code>\n"
+    summary.append('# Bytebase SQL Review\n\n')
+    summary.append("- Project: <code>${bytebaseHtml(project)}</code>\n")
     if (buildUrl?.trim()) {
-        summary << "- Jenkins build: ${buildUrl}\n"
+        summary.append("- Jenkins build: ${buildUrl}\n")
     }
-    summary << "- Total affected rows: <b>${bytebaseHtml(checkResults.affectedRows ?: 0)}</b>\n"
-    summary << "- Overall risk level: <b>${bytebaseRiskLevel(checkResults.riskLevel)}</b>\n"
-    summary << "- Advice statistics: <b>${errors} Error(s), ${warnings} Warning(s)</b>\n\n"
-    summary << '## Advice details\n\n'
+    summary.append("- Total affected rows: <b>${bytebaseHtml(checkResults.affectedRows ?: 0)}</b>\n")
+    summary.append("- Overall risk level: <b>${bytebaseRiskLevel(checkResults.riskLevel)}</b>\n")
+    summary.append("- Advice statistics: <b>${errors} Error(s), ${warnings} Warning(s)</b>\n\n")
+    summary.append('## Advice details\n\n')
 
     if (details.isEmpty()) {
-        summary << 'No warning or error advice was returned.\n'
+        summary.append('No warning or error advice was returned.\n')
         return summary.toString()
     }
 
-    summary << '<table><thead><tr><th>File</th><th>Line</th><th>Severity</th><th>Code</th><th>Title</th><th>Details</th><th>Target</th></tr></thead><tbody>\n'
+    summary.append('<table><thead><tr><th>File</th><th>Line</th><th>Severity</th><th>Code</th><th>Title</th><th>Details</th><th>Target</th></tr></thead><tbody>\n')
     details.each { detail ->
-        summary << '<tr>'
-        summary << "<td><code>${bytebaseHtml(detail.file)}</code></td>"
-        summary << "<td>${bytebaseHtml(detail.line)}</td>"
-        summary << "<td>${bytebaseHtml(detail.severity)}</td>"
-        summary << "<td><code>${bytebaseHtml(detail.code)}</code></td>"
-        summary << "<td>${bytebaseHtml(detail.title)}</td>"
-        summary << "<td>${bytebaseHtml(detail.content)}</td>"
-        summary << "<td><code>${bytebaseHtml(detail.target)}</code></td>"
-        summary << '</tr>\n'
+        summary.append('<tr>')
+        summary.append("<td><code>${bytebaseHtml(detail.file)}</code></td>")
+        summary.append("<td>${bytebaseHtml(detail.line)}</td>")
+        summary.append("<td>${bytebaseHtml(detail.severity)}</td>")
+        summary.append("<td><code>${bytebaseHtml(detail.code)}</code></td>")
+        summary.append("<td>${bytebaseHtml(detail.title)}</td>")
+        summary.append("<td>${bytebaseHtml(detail.content)}</td>")
+        summary.append("<td><code>${bytebaseHtml(detail.target)}</code></td>")
+        summary.append('</tr>\n')
     }
-    summary << '</tbody></table>\n'
+    summary.append('</tbody></table>\n')
     return summary.toString()
 }
 
