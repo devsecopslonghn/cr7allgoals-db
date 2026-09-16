@@ -46,12 +46,43 @@ pipeline {
                             credentialsId: 'bytebase-cr7-service-account',
                             usernameVariable: 'BYTEBASE_SERVICE_ACCOUNT',
                             passwordVariable: 'BYTEBASE_SERVICE_ACCOUNT_SECRET'
+                        ),
+                        string(
+                            credentialsId: 'github-token',
+                            variable: 'GITHUB_TOKEN'
                         )
                     ]) {
                         def reviewStatus = sh(
                             returnStatus: true,
                             script: '''#!/bin/sh
                                 set +e
+
+                                repository="${GITHUB_REPOSITORY:-}"
+                                if [ -z "$repository" ]; then
+                                    source_url="${CHANGE_URL:-${GIT_URL:-}}"
+                                    case "$source_url" in
+                                        git@github.com:*)
+                                            repository="${source_url#git@github.com:}"
+                                            ;;
+                                        https://*|http://*)
+                                            repository="$(printf '%s' "$source_url" | sed -E 's#^https?://[^/]+/##; s#/pull/[0-9]+/?$##')"
+                                            ;;
+                                    esac
+                                    repository="${repository%.git}"
+                                    repository="${repository%/}"
+                                fi
+
+                                test -n "$repository"
+                                printf '{"number":%s}\n' "$CHANGE_ID" > .jenkins/github-event.json
+
+                                # Make bytebase-action use its native GitHub output
+                                # while the job is actually running in Jenkins.
+                                export GITHUB_ACTIONS=true
+                                export GITHUB_REPOSITORY="$repository"
+                                export GITHUB_EVENT_NAME=pull_request
+                                export GITHUB_EVENT_PATH=.jenkins/github-event.json
+                                export GITHUB_API_URL="${GITHUB_API_URL:-https://api.github.com}"
+
                                 bytebase-action check \\
                                   --url "$BYTEBASE_URL" \\
                                   --project "$BYTEBASE_PROJECT" \\
@@ -73,92 +104,6 @@ pipeline {
                         env.SQL_REVIEW_STATUS = reviewStatus.toString()
                         if (reviewStatus != 0) {
                             currentBuild.result = 'FAILURE'
-                        }
-                    }
-                }
-            }
-            post {
-                always {
-                    script {
-                        // Bind a GitHub PAT stored as a Jenkins Secret text credential.
-                        if (env.CHANGE_ID) {
-                            def reviewStatus = env.SQL_REVIEW_STATUS == '0' ? '✅ Passed' : '❌ Failed'
-                            def reviewOutput = fileExists('.jenkins/sql-review.log')
-                                ? readFile('.jenkins/sql-review.log')
-                                : 'No review output was produced.'
-                            def reviewJson = fileExists('.jenkins/sql-review.json')
-                                ? readFile('.jenkins/sql-review.json')
-                                : 'No JSON output was produced.'
-
-                            if (reviewOutput.size() > 12000) {
-                                reviewOutput = reviewOutput.substring(reviewOutput.size() - 12000)
-                            }
-                            if (reviewJson.size() > 20000) {
-                                reviewJson = reviewJson.substring(0, 20000) + '\n... output truncated ...'
-                            }
-
-                            def commentBody = """## Bytebase SQL Review — ${reviewStatus}
-
-- Project: `${env.BYTEBASE_PROJECT}`
-- Jenkins build: ${env.BUILD_URL ?: 'not available'}
-
-<details><summary>Review output</summary>
-
-```text
-${reviewOutput}
-```
-</details>
-
-<details><summary>Bytebase JSON details</summary>
-
-```json
-${reviewJson}
-```
-</details>
-"""
-
-                            writeFile(file: '.jenkins/sql-review-comment.md', text: commentBody)
-
-                            withCredentials([
-                                string(
-                                    credentialsId: 'github-token',
-                                    variable: 'GITHUB_TOKEN'
-                                )
-                            ]) {
-                                sh '''#!/bin/sh
-                                    set -eu
-
-                                    repository="${GITHUB_REPOSITORY:-}"
-                                    if [ -z "$repository" ]; then
-                                        source_url="${CHANGE_URL:-${GIT_URL:-}}"
-                                        case "$source_url" in
-                                            git@github.com:*)
-                                                repository="${source_url#git@github.com:}"
-                                                ;;
-                                            https://*|http://*)
-                                                repository="$(printf '%s' "$source_url" | sed -E 's#^https?://[^/]+/##; s#/pull/[0-9]+/?$##')"
-                                                ;;
-                                        esac
-                                        repository="${repository%.git}"
-                                        repository="${repository%/}"
-                                    fi
-
-                                    test -n "$repository"
-                                    jq -Rs '{body: .}' .jenkins/sql-review-comment.md > .jenkins/sql-review-comment.json
-                                    http_status=$(curl --silent --show-error --retry 3 \\
-                                      -X POST \\
-                                      "$GITHUB_API_URL/repos/$repository/issues/$CHANGE_ID/comments" \\
-                                      -H 'Accept: application/vnd.github+json' \\
-                                      -H 'X-GitHub-Api-Version: 2022-11-28' \\
-                                      -H "Authorization: Bearer $GITHUB_TOKEN" \\
-                                      -H 'Content-Type: application/json' \\
-                                      --data-binary @.jenkins/sql-review-comment.json \\
-                                      --output .jenkins/github-comment-response.json \\
-                                      --write-out '%{http_code}')
-                                    cat .jenkins/github-comment-response.json
-                                    test "$http_status" = '201'
-                                '''
-                            }
                         }
                     }
                 }
