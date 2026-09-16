@@ -80,8 +80,7 @@ pipeline {
             post {
                 always {
                     script {
-                        // Bind the existing GitHub App credential. GitHub Branch
-                        // Source generates a short-lived API token for it.
+                        // Bind a GitHub PAT stored as a Jenkins Secret text credential.
                         if (env.CHANGE_ID) {
                             def reviewStatus = env.SQL_REVIEW_STATUS == '0' ? '✅ Passed' : '❌ Failed'
                             def reviewOutput = fileExists('.jenkins/sql-review.log')
@@ -121,10 +120,9 @@ ${reviewJson}
                             writeFile(file: '.jenkins/sql-review-comment.md', text: commentBody)
 
                             withCredentials([
-                                usernamePassword(
-                                    credentialsId: 'devsecopslonghn',
-                                    usernameVariable: 'GITHUB_APP_ID',
-                                    passwordVariable: 'GITHUB_ACCESS_TOKEN'
+                                string(
+                                    credentialsId: 'github-token',
+                                    variable: 'GITHUB_TOKEN'
                                 )
                             ]) {
                                 sh '''#!/bin/sh
@@ -152,7 +150,7 @@ ${reviewJson}
                                       "$GITHUB_API_URL/repos/$repository/issues/$CHANGE_ID/comments" \\
                                       -H 'Accept: application/vnd.github+json' \\
                                       -H 'X-GitHub-Api-Version: 2022-11-28' \\
-                                      -H "Authorization: Bearer $GITHUB_ACCESS_TOKEN" \\
+                                      -H "Authorization: Bearer $GITHUB_TOKEN" \\
                                       -H 'Content-Type: application/json' \\
                                       --data-binary @.jenkins/sql-review-comment.json \\
                                       --output .jenkins/github-comment-response.json \\
