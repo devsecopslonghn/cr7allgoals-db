@@ -87,9 +87,15 @@ pipeline {
                             def reviewOutput = fileExists('.jenkins/sql-review.log')
                                 ? readFile('.jenkins/sql-review.log')
                                 : 'No review output was produced.'
+                            def reviewJson = fileExists('.jenkins/sql-review.json')
+                                ? readFile('.jenkins/sql-review.json')
+                                : 'No JSON output was produced.'
 
                             if (reviewOutput.size() > 12000) {
                                 reviewOutput = reviewOutput.substring(reviewOutput.size() - 12000)
+                            }
+                            if (reviewJson.size() > 20000) {
+                                reviewJson = reviewJson.substring(0, 20000) + '\n... output truncated ...'
                             }
 
                             def commentBody = """## Bytebase SQL Review — ${reviewStatus}
@@ -101,6 +107,13 @@ pipeline {
 
 ```text
 ${reviewOutput}
+```
+</details>
+
+<details><summary>Bytebase JSON details</summary>
+
+```json
+${reviewJson}
 ```
 </details>
 """
@@ -134,14 +147,18 @@ ${reviewOutput}
 
                                     test -n "$repository"
                                     jq -Rs '{body: .}' .jenkins/sql-review-comment.md > .jenkins/sql-review-comment.json
-                                    curl --fail --silent --show-error --retry 3 \\
+                                    http_status=$(curl --silent --show-error --retry 3 \\
                                       -X POST \\
                                       "$GITHUB_API_URL/repos/$repository/issues/$CHANGE_ID/comments" \\
                                       -H 'Accept: application/vnd.github+json' \\
                                       -H 'X-GitHub-Api-Version: 2022-11-28' \\
                                       -H "Authorization: Bearer $GITHUB_ACCESS_TOKEN" \\
                                       -H 'Content-Type: application/json' \\
-                                      --data-binary @.jenkins/sql-review-comment.json
+                                      --data-binary @.jenkins/sql-review-comment.json \\
+                                      --output .jenkins/github-comment-response.json \\
+                                      --write-out '%{http_code}')
+                                    cat .jenkins/github-comment-response.json
+                                    test "$http_status" = '201'
                                 '''
                             }
                         }
