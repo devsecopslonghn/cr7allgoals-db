@@ -1,3 +1,98 @@
+// Keep SQL Review rendering in Jenkins so the result is portable across
+// GitHub, GitLab, and any other SCM connected to this multibranch job.
+def bytebaseHtml(value) {
+    if (value == null) {
+        return '-'
+    }
+    return value.toString()
+        .replace('&', '&amp;')
+        .replace('<', '&lt;')
+        .replace('>', '&gt;')
+        .replace('"', '&quot;')
+        .replace("'", '&#39;')
+        .replace('\r\n', '<br>')
+        .replace('\n', '<br>')
+}
+
+def bytebaseRiskLevel(value) {
+    switch (value?.toString()) {
+        case 'LOW':
+            return '🟢 Low'
+        case 'MODERATE':
+            return '🟡 Moderate'
+        case 'HIGH':
+            return '🔴 High'
+        default:
+            return '⚪ None'
+    }
+}
+
+def buildBytebaseReviewSummary(String reviewJson, String project, String buildUrl) {
+    def payload = new groovy.json.JsonSlurperClassic().parseText(reviewJson)
+    def checkResults = payload instanceof Map && payload.checkResults instanceof Map ? payload.checkResults : [:]
+    def results = checkResults.results instanceof List ? checkResults.results : []
+    def details = []
+    int errors = 0
+    int warnings = 0
+
+    results.each { result ->
+        def advices = result?.advices instanceof List ? result.advices : []
+        advices.each { advice ->
+            def status = advice?.status?.toString() ?: 'UNKNOWN'
+            if (status == 'ERROR') {
+                errors++
+            } else if (status == 'WARNING') {
+                warnings++
+            }
+
+            if (status == 'ERROR' || status == 'WARNING') {
+                def position = advice?.startPosition instanceof Map ? advice.startPosition : [:]
+                def line = position.line != null ? position.line : (position.lineNumber ?: '-')
+                details << [
+                    file: result?.file,
+                    line: line,
+                    severity: status == 'ERROR' ? '❌ Error' : '⚠️ Warning',
+                    code: advice?.code,
+                    title: advice?.title,
+                    content: advice?.content,
+                    target: result?.target
+                ]
+            }
+        }
+    }
+
+    def summary = new StringBuilder()
+    summary << '# Bytebase SQL Review\n\n'
+    summary << "- Project: <code>${bytebaseHtml(project)}</code>\n"
+    if (buildUrl?.trim()) {
+        summary << "- Jenkins build: ${buildUrl}\n"
+    }
+    summary << "- Total affected rows: <b>${bytebaseHtml(checkResults.affectedRows ?: 0)}</b>\n"
+    summary << "- Overall risk level: <b>${bytebaseRiskLevel(checkResults.riskLevel)}</b>\n"
+    summary << "- Advice statistics: <b>${errors} Error(s), ${warnings} Warning(s)</b>\n\n"
+    summary << '## Advice details\n\n'
+
+    if (details.isEmpty()) {
+        summary << 'No warning or error advice was returned.\n'
+        return summary.toString()
+    }
+
+    summary << '<table><thead><tr><th>File</th><th>Line</th><th>Severity</th><th>Code</th><th>Title</th><th>Details</th><th>Target</th></tr></thead><tbody>\n'
+    details.each { detail ->
+        summary << '<tr>'
+        summary << "<td><code>${bytebaseHtml(detail.file)}</code></td>"
+        summary << "<td>${bytebaseHtml(detail.line)}</td>"
+        summary << "<td>${bytebaseHtml(detail.severity)}</td>"
+        summary << "<td><code>${bytebaseHtml(detail.code)}</code></td>"
+        summary << "<td>${bytebaseHtml(detail.title)}</td>"
+        summary << "<td>${bytebaseHtml(detail.content)}</td>"
+        summary << "<td><code>${bytebaseHtml(detail.target)}</code></td>"
+        summary << '</tr>\n'
+    }
+    summary << '</tbody></table>\n'
+    return summary.toString()
+}
+
 pipeline {
     // The Jenkins agent itself is the Bytebase action image.
     agent {
@@ -21,7 +116,6 @@ pipeline {
         BYTEBASE_TARGETS = 'instances/oracle-cloud-free-sge0/databases/CR7ALLGOALS_APP'
         BYTEBASE_OUTPUT = '.jenkins/bytebase-metadata.json'
         BYTEBASE_DEVELOP_STAGE = 'environments/develop'
-        GITHUB_API_URL = 'https://api.github.com'
     }
 
     stages {
@@ -39,22 +133,9 @@ pipeline {
                 changeRequest()
             }
             environment {
-                // bytebase-action detects GitHub from these standard variables
-                // and publishes its native SQL Review comment.
-                GITHUB_ACTIONS = 'true'
-                GITHUB_REPOSITORY = 'devsecopslonghn/cr7allgoals-db'
-                GITHUB_EVENT_NAME = 'pull_request'
-                GITHUB_EVENT_PATH = '.jenkins/github-event.json'
                 BYTEBASE_CREDENTIALS = credentials('bytebase-cr7-service-account')
-                GITHUB_TOKEN = credentials('github-token')
             }
             steps {
-                // The action reads the PR number from GITHUB_EVENT_PATH.
-                // Jenkins already exposes it as CHANGE_ID for multibranch PR builds.
-                writeFile(
-                    file: '.jenkins/github-event.json',
-                    text: "{\"number\":${env.CHANGE_ID}}\n"
-                )
                 script {
                     def reviewStatus = sh(
                         returnStatus: true,
@@ -68,12 +149,26 @@ pipeline {
                           --check-release FAIL_ON_ERROR \\
                           --output .jenkins/sql-review.json'''
                     )
+
+                    if (fileExists('.jenkins/sql-review.json')) {
+                        def summary = buildBytebaseReviewSummary(
+                            readFile('.jenkins/sql-review.json'),
+                            env.BYTEBASE_PROJECT,
+                            env.BUILD_URL ?: ''
+                        )
+                        writeFile(
+                            file: '.jenkins/bytebase-review-summary.md',
+                            text: summary
+                        )
+                        echo summary
+                    }
+
                     if (reviewStatus != 0) {
                         currentBuild.result = 'FAILURE'
                     }
                 }
                 archiveArtifacts(
-                    artifacts: '.jenkins/sql-review.json',
+                    artifacts: '.jenkins/sql-review.json,.jenkins/bytebase-review-summary.md',
                     fingerprint: true,
                     allowEmptyArchive: true
                 )
