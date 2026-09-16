@@ -20,8 +20,7 @@ pipeline {
         BYTEBASE_FILE_PATTERN = 'migrations/V*.sql'
         BYTEBASE_TARGETS = 'instances/oracle-cloud-free-sge0/databases/CR7ALLGOALS_APP'
         BYTEBASE_OUTPUT = '.jenkins/bytebase-metadata.json'
-        BYTEBASE_TEST_STAGE = 'environments/test'
-        BYTEBASE_PROD_STAGE = 'environments/prod'
+        BYTEBASE_DEVELOP_STAGE = 'environments/develop'
         GITHUB_API_URL = 'https://api.github.com'
     }
 
@@ -219,7 +218,7 @@ pipeline {
             }
         }
 
-        // All rollout stages are restricted to the real master branch.
+        // The develop rollout is restricted to the real master branch.
         // A PR build has a branch name such as PR-123, so it cannot deploy.
         stage('Create Rollout Plan') {
             when {
@@ -252,7 +251,7 @@ pipeline {
             }
         }
 
-        stage('Rollout TEST') {
+        stage('Rollout DEVELOP') {
             when {
                 branch 'master'
             }
@@ -271,34 +270,7 @@ pipeline {
                           --project "$BYTEBASE_PROJECT" \\
                           --service-account "$BYTEBASE_SERVICE_ACCOUNT" \\
                           --service-account-secret "$BYTEBASE_SERVICE_ACCOUNT_SECRET" \\
-                          --target-stage "$BYTEBASE_TEST_STAGE" \\
-                          --plan "$(cat .jenkins/bytebase-plan)"
-                    '''
-                }
-            }
-        }
-
-        stage('Rollout PROD') {
-            when {
-                branch 'master'
-            }
-            steps {
-                input message: 'Deploy this Bytebase plan to production?', ok: 'Deploy'
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'bytebase-cr7-service-account',
-                        usernameVariable: 'BYTEBASE_SERVICE_ACCOUNT',
-                        passwordVariable: 'BYTEBASE_SERVICE_ACCOUNT_SECRET'
-                    )
-                ]) {
-                    sh '''#!/bin/sh
-                        set -eu
-                        bytebase-action rollout \\
-                          --url "$BYTEBASE_URL" \\
-                          --project "$BYTEBASE_PROJECT" \\
-                          --service-account "$BYTEBASE_SERVICE_ACCOUNT" \\
-                          --service-account-secret "$BYTEBASE_SERVICE_ACCOUNT_SECRET" \\
-                          --target-stage "$BYTEBASE_PROD_STAGE" \\
+                          --target-stage "$BYTEBASE_DEVELOP_STAGE" \\
                           --plan "$(cat .jenkins/bytebase-plan)"
                     '''
                 }
