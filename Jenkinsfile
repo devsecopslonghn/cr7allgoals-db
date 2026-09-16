@@ -28,7 +28,9 @@ def bytebaseRiskLevel(value) {
 }
 
 def buildBytebaseReviewSummary(String reviewJson, String project, String buildUrl) {
-    def payload = new groovy.json.JsonSlurperClassic().parseText(reviewJson)
+    // readJSON is a Jenkins Pipeline step and is sandbox-compatible. Returning
+    // plain maps/lists also keeps the rest of this function easy to inspect.
+    def payload = readJSON(text: reviewJson, returnPojo: true)
     def checkResults = payload instanceof Map && payload.checkResults instanceof Map ? payload.checkResults : [:]
     def results = checkResults.results instanceof List ? checkResults.results : []
     def details = []
