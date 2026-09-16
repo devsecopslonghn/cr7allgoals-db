@@ -8,7 +8,7 @@ CREATE TABLE BB_POC_V1_RELEASE_FLOW (
 );
 
 COMMENT ON TABLE BB_POC_V1_RELEASE_FLOW IS
-    'POC release-flow records managed through Bytebase migrations (mutation test).';
+    'POC release-flow records managed through Bytebase migrations.';
 COMMENT ON COLUMN BB_POC_V1_RELEASE_FLOW.RELEASE_ID IS
     'Surrogate identifier for the release-flow record.';
 COMMENT ON COLUMN BB_POC_V1_RELEASE_FLOW.RELEASE_NAME IS
