@@ -95,6 +95,43 @@ def buildBytebaseReviewSummary(String reviewJson, String project, String buildUr
     return summary.toString()
 }
 
+def bytebaseJsonEscape(String value) {
+    return (value ?: '')
+        .replace('\\', '\\\\')
+        .replace('"', '\\"')
+        .replace('\r', '\\r')
+        .replace('\n', '\\n')
+}
+
+def publishReviewComment(String summary, String apiUrl, String changeUrl, String changeId, String token) {
+    def repository = (changeUrl ?: '')
+        .replaceFirst('^https?://[^/]+/', '')
+        .replaceFirst('/pull/[0-9]+/?$', '')
+        .replaceFirst('\\.git$', '')
+        .replaceFirst('/$', '')
+
+    if (!repository || !changeId || !repository.contains('/') || repository.contains('..')) {
+        error('Unable to determine a safe GitHub repository or pull request number')
+    }
+
+    def commentBody = '<!-- BYTEBASE-JENKINS-SUMMARY -->\n' + summary
+    def requestBody = '{"body":"' + bytebaseJsonEscape(commentBody) + '"}'
+
+    httpRequest(
+        httpMode: 'POST',
+        url: "${apiUrl}/repos/${repository}/issues/${changeId}/comments",
+        customHeaders: [
+            [name: 'Accept', value: 'application/vnd.github+json'],
+            [name: 'X-GitHub-Api-Version', value: '2022-11-28'],
+            [name: 'Authorization', value: "Bearer ${token}", maskValue: true]
+        ],
+        contentType: 'APPLICATION_JSON',
+        requestBody: requestBody,
+        validResponseCodes: '200:299',
+        quiet: true
+    )
+}
+
 pipeline {
     // The Jenkins agent itself is the Bytebase action image.
     agent {
@@ -118,6 +155,7 @@ pipeline {
         BYTEBASE_TARGETS = 'instances/oracle-cloud-free-sge0/databases/CR7ALLGOALS_APP'
         BYTEBASE_OUTPUT = '.jenkins/bytebase-metadata.json'
         BYTEBASE_DEVELOP_STAGE = 'environments/develop'
+        GITHUB_API_URL = 'https://api.github.com'
     }
 
     stages {
@@ -136,6 +174,7 @@ pipeline {
             }
             environment {
                 BYTEBASE_CREDENTIALS = credentials('bytebase-cr7-service-account')
+                GITHUB_TOKEN = credentials('github-token')
             }
             steps {
                 script {
@@ -163,6 +202,13 @@ pipeline {
                             text: summary
                         )
                         echo summary
+                        publishReviewComment(
+                            summary,
+                            env.GITHUB_API_URL,
+                            env.CHANGE_URL,
+                            env.CHANGE_ID,
+                            env.GITHUB_TOKEN
+                        )
                     }
 
                     if (reviewStatus != 0) {
