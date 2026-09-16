@@ -11,7 +11,7 @@ was found. Existing CR7 repositories are GitHub repositories on `master`.
 ## 2. Architecture decisions
 
 The POC selects a dedicated `cr7allgoals-db` source repository, migration-based
-Bytebase workflow, Jenkins Pipeline, flat `migrations/*.sql` layout, numeric UTC timestamps, and
+Bytebase workflow, Jenkins Pipeline, flat `migrations/*.sql` layout, semantic `V1.0.0.N` versions, and
 explicit `_ddl`/`_dml` suffixes. This is documented in the [decision gate](../DATABASE-SOURCE-DECISION.md).
 
 Bytebase's official migration-based documentation defines `<Version>_<Description>.sql`,
@@ -33,11 +33,11 @@ The repository contains five immutable-by-policy migrations:
 
 | Version | Change |
 |---|---|
-| 20260909143000 | `BB_POC_RELEASE_FLOW` table |
-| 20260909150000 | `STATUS` column |
-| 20260909153000 | POC seed row |
-| 20260909160000 | initial `BB_POC_RELEASE_FLOW_V` view |
-| 20260909163000 | later `CREATE OR REPLACE VIEW` revision adding `IS_ACTIVE` |
+| V1.0.0.0 | `BB_POC_V1_RELEASE_FLOW` table |
+| V1.0.0.1 | `STATUS` column |
+| V1.0.0.2 | POC seed row |
+| V1.0.0.3 | initial `BB_POC_V1_RELEASE_FLOW_V` view |
+| V1.0.0.4 | later `CREATE OR REPLACE VIEW` revision adding `IS_ACTIVE` |
 
 Migration version, Git SHA, Bytebase database release, Bytebase revision, and
 application release remain distinct. The promotion artifact is the Bytebase

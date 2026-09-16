@@ -1,0 +1,6 @@
+-- CR7 All Goals POC migration V1.0.0.4.
+-- Revise the view with a derived active-state column.
+CREATE OR REPLACE VIEW BB_POC_V1_RELEASE_FLOW_V AS
+SELECT ID, NAME, STATUS, CREATED_AT,
+       CASE WHEN STATUS = 'ACTIVE' THEN 1 ELSE 0 END AS IS_ACTIVE
+FROM BB_POC_V1_RELEASE_FLOW;

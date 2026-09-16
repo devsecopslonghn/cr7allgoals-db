@@ -15,7 +15,7 @@ release metadata, and recovery state answer different questions.
 
 ## Developer experience
 
-Create one timestamped migration, add recovery notes, run/test locally when
+Create one semantically versioned migration, add recovery notes, run/test locally when
 available, open a pull request, and respond to SQL Review. Merge is the hand-off point to
 the database release process. An applied file is immutable forever. A developer
 does not use `sqlplus`, ask a DBA to copy a chat attachment, or receive an Oracle
@@ -38,7 +38,7 @@ observability. Jenkins calls Bytebase; Jenkins does not connect to Oracle.
 
 ## Version and promotion
 
-Migration version is the 14-digit UTC timestamp prefix. It is not the Git SHA,
+Migration version is the semantic `V1.0.0.N` prefix. It is not the Git SHA,
 application version, Bytebase release, or Oracle revision. A release manifest
 should record all of them, plus the application release compatibility statement.
 
@@ -53,7 +53,7 @@ belongs in Kubernetes/application configuration instead.
 ## Application compatibility and rollback
 
 Application and database releases are independent. Example: app `1.8.0` declares
-`DB >= 20260909143000`; later app patches may use the same DB revision. Use
+`DB >= V1.0.0.0`; later app patches may use the same DB revision. Use
 expand/contract: expand schema, deploy compatible app, migrate usage, contract in
 a later change. App rollback from `1.8` to `1.7` does not automatically drop a
 column. Fix-forward is the default; reverse SQL is exceptional and must be proven
@@ -71,7 +71,7 @@ automatic drift detection and remediation is a remaining gap.
 
 ## Minimum new-starter rules
 
-1. Every DB change is a new timestamped SQL file in Git.
+1. Every DB change is a new semantically versioned SQL file in Git.
 2. One logical change per file; use `_ddl` or `_dml` accurately.
 3. Never edit an applied migration; create a follow-up migration.
 4. Review happens in the pull request/Jenkins pipeline and risk approval in Bytebase.

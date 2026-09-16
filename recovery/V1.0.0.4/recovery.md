@@ -1,4 +1,4 @@
-# Recovery: 20260909163000
+# Recovery: V1.0.0.4
 
 Recovery classification: FIX_FORWARD  
 Application rollback compatible: YES  
