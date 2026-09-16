@@ -1,3 +1,134 @@
+// Keep SQL Review rendering in Jenkins so the result is portable across
+// GitHub, GitLab, and any other SCM connected to this multibranch job.
+def bytebaseHtml(value) {
+    if (value == null) {
+        return '-'
+    }
+    return value.toString()
+        .replace('&', '&amp;')
+        .replace('<', '&lt;')
+        .replace('>', '&gt;')
+        .replace('"', '&quot;')
+        .replace("'", '&#39;')
+        .replace('\r\n', '<br>')
+        .replace('\n', '<br>')
+}
+
+def bytebaseRiskLevel(value) {
+    switch (value?.toString()) {
+        case 'LOW':
+            return '🟢 Low'
+        case 'MODERATE':
+            return '🟡 Moderate'
+        case 'HIGH':
+            return '🔴 High'
+        default:
+            return '⚪ None'
+    }
+}
+
+def buildBytebaseReviewSummary(String reviewJson, String project) {
+    // readJSON is a Jenkins Pipeline step and is sandbox-compatible. Returning
+    // plain maps/lists also keeps the rest of this function easy to inspect.
+    def payload = readJSON(text: reviewJson, returnPojo: true)
+    def checkResults = payload instanceof Map && payload.checkResults instanceof Map ? payload.checkResults : [:]
+    def results = checkResults.results instanceof List ? checkResults.results : []
+    def details = []
+    int errors = 0
+    int warnings = 0
+
+    results.each { result ->
+        def advices = result?.advices instanceof List ? result.advices : []
+        advices.each { advice ->
+            def status = advice?.status?.toString() ?: 'UNKNOWN'
+            if (status == 'ERROR') {
+                errors++
+            } else if (status == 'WARNING') {
+                warnings++
+            }
+
+            if (status == 'ERROR' || status == 'WARNING') {
+                def position = advice?.startPosition instanceof Map ? advice.startPosition : [:]
+                def line = position.line != null ? position.line : (position.lineNumber ?: '-')
+                details.add([
+                    file: result?.file,
+                    line: line,
+                    severity: status == 'ERROR' ? '❌ Error' : '⚠️ Warning',
+                    code: advice?.code,
+                    title: advice?.title,
+                    content: advice?.content,
+                    target: result?.target
+                ])
+            }
+        }
+    }
+
+    def summary = new StringBuilder()
+    summary.append('# Bytebase SQL Review\n\n')
+    summary.append("- Project: <code>${bytebaseHtml(project)}</code>\n")
+    summary.append("- Total affected rows: <b>${bytebaseHtml(checkResults.affectedRows ?: 0)}</b>\n")
+    summary.append("- Overall risk level: <b>${bytebaseRiskLevel(checkResults.riskLevel)}</b>\n")
+    summary.append("- Advice statistics: <b>${errors} Error(s), ${warnings} Warning(s)</b>\n\n")
+    summary.append('## Advice details\n\n')
+
+    if (details.isEmpty()) {
+        summary.append('No warning or error advice was returned.\n')
+        return summary.toString()
+    }
+
+    summary.append('<table><thead><tr><th>File</th><th>Line</th><th>Severity</th><th>Code</th><th>Title</th><th>Details</th><th>Target</th></tr></thead><tbody>\n')
+    details.each { detail ->
+        summary.append('<tr>')
+        summary.append("<td><code>${bytebaseHtml(detail.file)}</code></td>")
+        summary.append("<td>${bytebaseHtml(detail.line)}</td>")
+        summary.append("<td>${bytebaseHtml(detail.severity)}</td>")
+        summary.append("<td><code>${bytebaseHtml(detail.code)}</code></td>")
+        summary.append("<td>${bytebaseHtml(detail.title)}</td>")
+        summary.append("<td>${bytebaseHtml(detail.content)}</td>")
+        summary.append("<td><code>${bytebaseHtml(detail.target)}</code></td>")
+        summary.append('</tr>\n')
+    }
+    summary.append('</tbody></table>\n')
+    return summary.toString()
+}
+
+def bytebaseJsonEscape(String value) {
+    return (value ?: '')
+        .replace('\\', '\\\\')
+        .replace('"', '\\"')
+        .replace('\r', '\\r')
+        .replace('\n', '\\n')
+}
+
+def publishReviewComment(String summary, String apiUrl, String changeUrl, String changeId, String token) {
+    def repository = (changeUrl ?: '')
+        .replaceFirst('^https?://[^/]+/', '')
+        .replaceFirst('/pull/[0-9]+/?$', '')
+        .replaceFirst('\\.git$', '')
+        .replaceFirst('/$', '')
+
+    if (!repository || !changeId || !repository.contains('/') || repository.contains('..')) {
+        error('Unable to determine a safe GitHub repository or pull request number')
+    }
+
+    def commentBody = '<!-- BYTEBASE-JENKINS-SUMMARY -->\n' + summary
+    def requestBody = '{"body":"' + bytebaseJsonEscape(commentBody) + '"}'
+
+    httpRequest(
+        httpMode: 'POST',
+        url: "${apiUrl}/repos/${repository}/issues/${changeId}/comments",
+        customHeaders: [
+            [name: 'Accept', value: 'application/vnd.github+json'],
+            [name: 'X-GitHub-Api-Version', value: '2022-11-28'],
+            [name: 'Authorization', value: "Bearer ${token}", maskValue: true]
+        ],
+        contentType: 'APPLICATION_JSON',
+        requestBody: requestBody,
+        validResponseCodes: '200:299',
+        quiet: true
+    )
+}
+
 pipeline {
     // The Jenkins agent itself is the Bytebase action image.
     agent {
@@ -15,12 +146,7 @@ pipeline {
     }
 
     environment {
-        BYTEBASE_URL = 'https://bytebase.apps.drgdevlab.com'
-        BYTEBASE_PROJECT = 'projects/cr7-allgoal-kvi1'
-        BYTEBASE_FILE_PATTERN = 'migrations/V*.sql'
-        BYTEBASE_TARGETS = 'instances/oracle-cloud-free-sge0/databases/CR7ALLGOALS_APP'
-        BYTEBASE_OUTPUT = '.jenkins/bytebase-metadata.json'
-        BYTEBASE_DEVELOP_STAGE = 'environments/develop'
+        BYTEBASE_CONFIG_FILE = 'environments/develop.yaml'
         GITHUB_API_URL = 'https://api.github.com'
     }
 
@@ -32,189 +158,86 @@ pipeline {
             }
         }
 
+        stage('Load Environment Config') {
+            steps {
+                script {
+                    def config = readYaml(file: env.BYTEBASE_CONFIG_FILE)
+                    def bytebase = config instanceof Map && config.bytebase instanceof Map ? config.bytebase : [:]
+                    def required = [
+                        url: 'BYTEBASE_URL',
+                        project: 'BYTEBASE_PROJECT',
+                        file_pattern: 'BYTEBASE_FILE_PATTERN',
+                        targets: 'BYTEBASE_TARGETS',
+                        output: 'BYTEBASE_OUTPUT',
+                        develop_stage: 'BYTEBASE_DEVELOP_STAGE'
+                    ]
+
+                    required.each { key, variable ->
+                        def value = bytebase[key]
+                        if (value == null || value.toString().trim().isEmpty()) {
+                            error("Missing bytebase.${key} in ${env.BYTEBASE_CONFIG_FILE}")
+                        }
+                        env[variable] = value.toString()
+                    }
+
+                    echo "Loaded Bytebase environment config: ${env.BYTEBASE_CONFIG_FILE}"
+                }
+            }
+        }
+
         // Runs for a pull request targeting any branch. It is deliberately not
         // restricted to master/main.
         stage('SQL Review') {
             when {
                 changeRequest()
             }
+            environment {
+                BYTEBASE_CREDENTIALS = credentials('bytebase-cr7-service-account')
+                GITHUB_TOKEN = credentials('github-token')
+            }
             steps {
                 script {
-                    withCredentials([
-                        usernamePassword(
-                            credentialsId: 'bytebase-cr7-service-account',
-                            usernameVariable: 'BYTEBASE_SERVICE_ACCOUNT',
-                            passwordVariable: 'BYTEBASE_SERVICE_ACCOUNT_SECRET'
-                        ),
-                        string(
-                            credentialsId: 'github-token',
-                            variable: 'GITHUB_TOKEN'
+                    def reviewStatus = sh(
+                        returnStatus: true,
+                        script: '''bytebase-action check \\
+                          --url "$BYTEBASE_URL" \\
+                          --project "$BYTEBASE_PROJECT" \\
+                          --service-account "$BYTEBASE_CREDENTIALS_USR" \\
+                          --service-account-secret "$BYTEBASE_CREDENTIALS_PSW" \\
+                          --targets "$BYTEBASE_TARGETS" \\
+                          --file-pattern "$BYTEBASE_FILE_PATTERN" \\
+                          --check-release FAIL_ON_ERROR \\
+                          --output .jenkins/sql-review.json'''
+                    )
+
+                    if (fileExists('.jenkins/sql-review.json')) {
+                        def summary = buildBytebaseReviewSummary(
+                            readFile('.jenkins/sql-review.json'),
+                            env.BYTEBASE_PROJECT
                         )
-                    ]) {
-                        def reviewStatus = sh(
-                            returnStatus: true,
-                            script: '''#!/bin/sh
-                                set +e
-
-                                repository="${GITHUB_REPOSITORY:-}"
-                                if [ -z "$repository" ]; then
-                                    source_url="${CHANGE_URL:-${GIT_URL:-}}"
-                                    case "$source_url" in
-                                        git@github.com:*)
-                                            repository="${source_url#git@github.com:}"
-                                            ;;
-                                        https://*|http://*)
-                                            repository="$(printf '%s' "$source_url" | sed -E 's#^https?://[^/]+/##; s#/pull/[0-9]+/?$##')"
-                                            ;;
-                                    esac
-                                    repository="${repository%.git}"
-                                    repository="${repository%/}"
-                                fi
-
-                                test -n "$repository"
-                                printf '{"number":%s}\n' "$CHANGE_ID" > .jenkins/github-event.json
-
-                                # Make bytebase-action use its native GitHub output
-                                # while the job is actually running in Jenkins.
-                                export GITHUB_ACTIONS=true
-                                export GITHUB_REPOSITORY="$repository"
-                                export GITHUB_EVENT_NAME=pull_request
-                                export GITHUB_EVENT_PATH=.jenkins/github-event.json
-                                export GITHUB_API_URL="${GITHUB_API_URL:-https://api.github.com}"
-
-                                bytebase-action check \\
-                                  --url "$BYTEBASE_URL" \\
-                                  --project "$BYTEBASE_PROJECT" \\
-                                  --service-account "$BYTEBASE_SERVICE_ACCOUNT" \\
-                                  --service-account-secret "$BYTEBASE_SERVICE_ACCOUNT_SECRET" \\
-                                  --targets "$BYTEBASE_TARGETS" \\
-                                  --file-pattern "$BYTEBASE_FILE_PATTERN" \\
-                                  --check-release FAIL_ON_ERROR \\
-                                  --output .jenkins/sql-review.json \\
-                                  > .jenkins/sql-review.log 2>&1
-                                status=$?
-                                cat .jenkins/sql-review.log
-                                exit "$status"
-                            '''
+                        writeFile(
+                            file: '.jenkins/bytebase-review-summary.md',
+                            text: summary
                         )
+                        echo summary
+                        publishReviewComment(
+                            summary,
+                            env.GITHUB_API_URL,
+                            env.CHANGE_URL,
+                            env.CHANGE_ID,
+                            env.GITHUB_TOKEN
+                        )
+                    }
 
-                        // Keep the pipeline moving long enough to publish the
-                        // result to the pull request, then fail the build.
-                        env.SQL_REVIEW_STATUS = reviewStatus.toString()
-                        if (reviewStatus != 0) {
-                            currentBuild.result = 'FAILURE'
-                        }
-
-                        if (fileExists('.jenkins/sql-review.json')) {
-                            archiveArtifacts(
-                                artifacts: '.jenkins/sql-review.json',
-                                fingerprint: true,
-                                allowEmptyArchive: true
-                            )
-
-                            // The native Bytebase comment only contains summary
-                            // counts. Sync the individual advices in a separate,
-                            // upserted PR comment because Jenkins cannot render
-                            // GitHub Actions annotations from the build log.
-                            def detailStatus = sh(
-                                returnStatus: true,
-                                script: '''#!/bin/sh
-                                    set -eu
-
-                                    review_file=.jenkins/sql-review.json
-                                    detail_file=.jenkins/bytebase-advice-comment.md
-
-                                    advice_table=$(jq -r '
-                                      def html:
-                                        tostring
-                                        | gsub("&"; "&amp;")
-                                        | gsub("<"; "&lt;")
-                                        | gsub(">"; "&gt;")
-                                        | gsub("\\r?\\n"; "<br>");
-                                      def severity:
-                                        if . == "ERROR" then "❌ Error"
-                                        elif . == "WARNING" then "⚠️ Warning"
-                                        else . end;
-                                      [
-                                        (.checkResults.results // [])[] as $result
-                                        | ($result.advices // [])[]
-                                        | select(.status == "ERROR" or .status == "WARNING")
-                                        | "<tr><td><code>\\(($result.file // "-") | html)</code></td><td>\\((.startPosition.line // .startPosition.lineNumber // "-") | html)</td><td><code>\\((.status // "-") | severity | html)</code></td><td><code>\\((.code // "-") | html)</code></td><td>\\((.title // "-") | html)</td><td>\\((.content // "-") | html)</td><td><code>\\(($result.target // "-") | html)</code></td></tr>"
-                                      ]
-                                      | if length == 0 then
-                                          "<p>No warning or error advice was returned.</p>"
-                                        else
-                                          "<table><thead><tr><th>File</th><th>Line</th><th>Severity</th><th>Code</th><th>Title</th><th>Details</th><th>Target</th></tr></thead><tbody>"
-                                          + (join("\\n"))
-                                          + "</tbody></table>"
-                                        end
-                                    ' "$review_file")
-
-                                    {
-                                        printf '%s\\n' '<!-- BYTEBASE-JENKINS-DETAILS -->'
-                                        printf '%s\\n\\n' '## Bytebase SQL Review — Advice details'
-                                        printf '%s\\n\\n' "- Jenkins build: ${BUILD_URL:-not available}"
-                                        printf '%s\\n' "$advice_table"
-                                    } > "$detail_file"
-
-                                    repository="${GITHUB_REPOSITORY:-}"
-                                    if [ -z "$repository" ]; then
-                                        source_url="${CHANGE_URL:-${GIT_URL:-}}"
-                                        case "$source_url" in
-                                            git@github.com:*)
-                                                repository="${source_url#git@github.com:}"
-                                                ;;
-                                            https://*|http://*)
-                                                repository="$(printf '%s' "$source_url" | sed -E 's#^https?://[^/]+/##; s#/pull/[0-9]+/?$##')"
-                                                ;;
-                                        esac
-                                        repository="${repository%.git}"
-                                        repository="${repository%/}"
-                                    fi
-
-                                    test -n "$repository"
-                                    jq -Rs '{body: .}' "$detail_file" > .jenkins/bytebase-advice-comment.json
-
-                                    curl --fail --silent --show-error --retry 3 \\
-                                      -H 'Accept: application/vnd.github+json' \\
-                                      -H 'X-GitHub-Api-Version: 2022-11-28' \\
-                                      -H "Authorization: Bearer $GITHUB_TOKEN" \\
-                                      "$GITHUB_API_URL/repos/$repository/issues/$CHANGE_ID/comments?per_page=100" \\
-                                      > .jenkins/github-comments.json
-
-                                    comment_id=$(jq -r '
-                                      .[]
-                                      | select((.body // "") | startswith("<!-- BYTEBASE-JENKINS-DETAILS -->"))
-                                      | .id
-                                    ' .jenkins/github-comments.json | head -n 1)
-
-                                    if [ -n "$comment_id" ] && [ "$comment_id" != 'null' ]; then
-                                        curl --fail --silent --show-error --retry 3 \\
-                                          -X PATCH \\
-                                          "$GITHUB_API_URL/repos/$repository/issues/comments/$comment_id" \\
-                                          -H 'Accept: application/vnd.github+json' \\
-                                          -H 'X-GitHub-Api-Version: 2022-11-28' \\
-                                          -H "Authorization: Bearer $GITHUB_TOKEN" \\
-                                          -H 'Content-Type: application/json' \\
-                                          --data-binary @.jenkins/bytebase-advice-comment.json
-                                    else
-                                        curl --fail --silent --show-error --retry 3 \\
-                                          -X POST \\
-                                          "$GITHUB_API_URL/repos/$repository/issues/$CHANGE_ID/comments" \\
-                                          -H 'Accept: application/vnd.github+json' \\
-                                          -H 'X-GitHub-Api-Version: 2022-11-28' \\
-                                          -H "Authorization: Bearer $GITHUB_TOKEN" \\
-                                          -H 'Content-Type: application/json' \\
-                                          --data-binary @.jenkins/bytebase-advice-comment.json
-                                    fi
-                                '''
-                            )
-                            if (detailStatus != 0) {
-                                currentBuild.result = 'FAILURE'
-                            }
-                        }
+                    if (reviewStatus != 0) {
+                        currentBuild.result = 'FAILURE'
                     }
                 }
+                archiveArtifacts(
+                    artifacts: '.jenkins/sql-review.json,.jenkins/bytebase-review-summary.md',
+                    fingerprint: true,
+                    allowEmptyArchive: true
+                )
             }
         }
 
