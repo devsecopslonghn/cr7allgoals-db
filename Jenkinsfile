@@ -27,7 +27,7 @@ def bytebaseRiskLevel(value) {
     }
 }
 
-def buildBytebaseReviewSummary(String reviewJson, String project, String buildUrl) {
+def buildBytebaseReviewSummary(String reviewJson, String project) {
     // readJSON is a Jenkins Pipeline step and is sandbox-compatible. Returning
     // plain maps/lists also keeps the rest of this function easy to inspect.
     def payload = readJSON(text: reviewJson, returnPojo: true)
@@ -66,9 +66,6 @@ def buildBytebaseReviewSummary(String reviewJson, String project, String buildUr
     def summary = new StringBuilder()
     summary.append('# Bytebase SQL Review\n\n')
     summary.append("- Project: <code>${bytebaseHtml(project)}</code>\n")
-    if (buildUrl?.trim()) {
-        summary.append("- Jenkins build: ${buildUrl}\n")
-    }
     summary.append("- Total affected rows: <b>${bytebaseHtml(checkResults.affectedRows ?: 0)}</b>\n")
     summary.append("- Overall risk level: <b>${bytebaseRiskLevel(checkResults.riskLevel)}</b>\n")
     summary.append("- Advice statistics: <b>${errors} Error(s), ${warnings} Warning(s)</b>\n\n")
@@ -194,8 +191,7 @@ pipeline {
                     if (fileExists('.jenkins/sql-review.json')) {
                         def summary = buildBytebaseReviewSummary(
                             readFile('.jenkins/sql-review.json'),
-                            env.BYTEBASE_PROJECT,
-                            env.BUILD_URL ?: ''
+                            env.BYTEBASE_PROJECT
                         )
                         writeFile(
                             file: '.jenkins/bytebase-review-summary.md',

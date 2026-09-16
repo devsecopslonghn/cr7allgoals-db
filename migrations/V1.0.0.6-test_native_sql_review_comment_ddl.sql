@@ -1,4 +1,7 @@
 -- CR7 All Goals POC migration V1.0.0.6.
--- Safe metadata-only change used to test Bytebase native SQL Review comments.
-COMMENT ON TABLE BB_POC_V1_RELEASE_FLOW IS
-    'POC release-flow records managed through Bytebase migrations; native SQL Review test.';
+-- Intentional SQL Review test: this should produce both errors and warnings.
+-- Do not manually roll out this migration to a real environment.
+CREATE TABLE BB_POC_V1_REVIEW_TEST (
+    ID NUMBER,
+    NAME VARCHAR2(100)
+);
