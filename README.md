@@ -1,14 +1,14 @@
 # CR7 All Goals Database
 
-Database change source for CR7 All Goals Oracle, operated through Bytebase Community migration-based GitOps and GitLab Merge Requests.
+Database change source for CR7 All Goals Oracle, operated through Bytebase Community migration-based GitOps.
 
 ## Developer: change the database in one minute
 
 1. Create a new file in `migrations/` using `V1.0.0.N-description_ddl.sql` or `_dml.sql`, increasing `N` by one for every new migration.
 2. Put one logical change in it. Use Oracle SQL and prefix POC objects with `BB_POC_`.
-3. Commit on a feature branch and open a GitLab merge request.
-4. Jenkins runs Bytebase SQL Review against the changed migration files and comments the detailed summary on the merge request.
-5. Fix review failures before merge.
+3. Add recovery notes under `recovery/<version>/recovery.md`.
+4. Commit on a feature branch and open a GitHub pull request.
+5. Jenkins runs Bytebase SQL Review against the changed migration files. Fix failures before merge.
 6. After approval, merge. Jenkins creates a Bytebase database release and rolls it out to DEV.
 7. The DBA/governance gate promotes that same release to later environments.
 

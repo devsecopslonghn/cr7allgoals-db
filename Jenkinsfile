@@ -100,34 +100,31 @@ def bytebaseJsonEscape(String value) {
         .replace('\n', '\\n')
 }
 
-def publishReviewComment(String summary, String changeUrl, String changeId, String token) {
-    // GitLab MR URL format:
-    // https://gitlab.com/<group>/<project>/-/merge_requests/<iid>
-    def gitlabHost = (changeUrl ?: '').replaceFirst('^((https?://)[^/]+).*$', '$1')
+def publishReviewComment(String summary, String apiUrl, String changeUrl, String changeId, String token) {
     def repository = (changeUrl ?: '')
         .replaceFirst('^https?://[^/]+/', '')
-        .replaceFirst('/-/merge_requests/[0-9]+/?$', '')
+        .replaceFirst('/pull/[0-9]+/?$', '')
         .replaceFirst('\\.git$', '')
         .replaceFirst('/$', '')
 
-    if (!gitlabHost || !repository || !changeId || !repository.contains('/') || repository.contains('..')) {
-        error('Unable to determine a safe GitLab project or merge request number')
+    if (!repository || !changeId || !repository.contains('/') || repository.contains('..')) {
+        error('Unable to determine a safe GitHub repository or pull request number')
     }
 
-    def encodedProject = repository.replace('/', '%2F')
     def commentBody = '<!-- BYTEBASE-JENKINS-SUMMARY -->\n' + summary
     def requestBody = '{"body":"' + bytebaseJsonEscape(commentBody) + '"}'
 
     httpRequest(
         httpMode: 'POST',
-        url: "${gitlabHost}/api/v4/projects/${encodedProject}/merge_requests/${changeId}/notes",
+        url: "${apiUrl}/repos/${repository}/issues/${changeId}/comments",
         customHeaders: [
-            [name: 'Accept', value: 'application/json'],
-            [name: 'PRIVATE-TOKEN', value: token, maskValue: true]
+            [name: 'Accept', value: 'application/vnd.github+json'],
+            [name: 'X-GitHub-Api-Version', value: '2022-11-28'],
+            [name: 'Authorization', value: "Bearer ${token}", maskValue: true]
         ],
         contentType: 'APPLICATION_JSON',
         requestBody: requestBody,
-        validResponseCodes: '201:299',
+        validResponseCodes: '200:299',
         quiet: true
     )
 }
@@ -155,6 +152,7 @@ pipeline {
         BYTEBASE_TARGETS = 'instances/oracle-cloud-free-sge0/databases/CR7ALLGOALS_APP'
         BYTEBASE_OUTPUT = '.jenkins/bytebase-metadata.json'
         BYTEBASE_DEVELOP_STAGE = 'environments/develop'
+        GITHUB_API_URL = 'https://api.github.com'
     }
 
     stages {
@@ -173,9 +171,7 @@ pipeline {
             }
             environment {
                 BYTEBASE_CREDENTIALS = credentials('bytebase-cr7-service-account')
-                // Reuse the PAT stored as the password of the Git HTTPS
-                // credential for GitLab MR comments.
-                GITLAB_CREDENTIALS = credentials('gitlab-https')
+                GITHUB_TOKEN = credentials('github-token')
             }
             steps {
                 script {
@@ -204,9 +200,10 @@ pipeline {
                         echo summary
                         publishReviewComment(
                             summary,
+                            env.GITHUB_API_URL,
                             env.CHANGE_URL,
                             env.CHANGE_ID,
-                            env.GITLAB_CREDENTIALS_PSW
+                            env.GITHUB_TOKEN
                         )
                     }
 
@@ -226,7 +223,7 @@ pipeline {
         // A PR build has a branch name such as PR-123, so it cannot deploy.
         stage('Create Rollout Plan') {
             when {
-                branch 'main'
+                branch 'master'
             }
             steps {
                 withCredentials([
@@ -257,7 +254,7 @@ pipeline {
 
         stage('Rollout DEVELOP') {
             when {
-                branch 'main'
+                branch 'master'
             }
             steps {
                 withCredentials([
