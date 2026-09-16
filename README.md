@@ -4,7 +4,7 @@ Database change source for CR7 All Goals Oracle, operated through Bytebase Commu
 
 ## Developer: change the database in one minute
 
-1. Create a new file in `migrations/` using `YYYYMMDDHHmmss_description_ddl.sql` or `_dml.sql`.
+1. Create a new file in `migrations/` using `V1.0.0.N-description_ddl.sql` or `_dml.sql`, increasing `N` by one for every new migration.
 2. Put one logical change in it. Use Oracle SQL and prefix POC objects with `BB_POC_`.
 3. Add recovery notes under `recovery/<version>/recovery.md`.
 4. Commit on a feature branch and open a GitHub pull request.
@@ -26,7 +26,7 @@ These are different identifiers:
 
 | Identity | Meaning |
 |---|---|
-| Migration version | Numeric timestamp at the start of a filename |
+| Migration version | Semantic version at the start of a filename, for example `V1.0.0.0` |
 | Git SHA | Immutable source commit |
 | Database release | Bytebase release containing one Git SHA and migration set |
 | Bytebase revision | Applied-history record for a target database |
@@ -36,13 +36,15 @@ Application rollback is not database rollback. Prefer expand → deploy app → 
 
 ## POC contents
 
-The migrations demonstrate:
+The initial POC release contains only schema changes that can be checked
+against the current target database:
 
-- `20260909143000`: create `BB_POC_RELEASE_FLOW` (DDL)
-- `20260909150000`: add `STATUS` without modifying migration 1 (DDL)
-- `20260909153000`: seed one row (DML)
-- `20260909160000`: create `BB_POC_RELEASE_FLOW_V` (programmable object, DDL)
-- `20260909163000`: update the view using `CREATE OR REPLACE` (new DDL revision)
+- `V1.0.0.0`: create `BB_POC_V1_RELEASE_FLOW` (DDL)
+- `V1.0.0.1`: add `STATUS` without modifying migration 1 (DDL)
+
+Seed DML and views are deliberately deferred to a later migration after this
+table has been rolled out. This lets the SQL Review DML dry-run validate
+against an existing target object.
 
 The current CR7 application runner in `cr7allgoals-be/packages/db` is existing application-owned infrastructure and is not altered by this POC. It remains a migration path to reconcile before production cutover; two authorities must not apply the same schema changes.
 

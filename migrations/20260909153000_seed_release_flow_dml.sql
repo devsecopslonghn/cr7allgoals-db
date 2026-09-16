@@ -1,3 +1,0 @@
--- CR7 database migration; version 20260909153000; controlled POC seed DML.
-INSERT INTO BB_POC_RELEASE_FLOW (NAME, STATUS)
-VALUES ('BYTEBASE_POC', 'ACTIVE');
