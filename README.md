@@ -42,9 +42,9 @@ against the current target database:
 - `V1.0.0.0`: create `BB_POC_V1_RELEASE_FLOW` (DDL)
 - `V1.0.0.1`: add `STATUS` without modifying migration 1 (DDL)
 
-Seed DML and views are deliberately deferred to a later migration after this
-table has been rolled out. This lets the SQL Review DML dry-run validate
-against an existing target object.
+After the initial table release is deployed, subsequent migrations may add
+seed DML and programmable objects. This lets the SQL Review DML dry-run
+validate against an existing target object.
 
 The current CR7 application runner in `cr7allgoals-be/packages/db` is existing application-owned infrastructure and is not altered by this POC. It remains a migration path to reconcile before production cutover; two authorities must not apply the same schema changes.
 
