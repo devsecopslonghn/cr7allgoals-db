@@ -4,7 +4,7 @@ pipeline {
         docker {
             image 'bytebase/bytebase-action:3.22.1'
             // Clear the image entrypoint so Jenkins can start its shell.
-            args '--entrypoint="" --user root:root'
+            args '--entrypoint=""'
         }
     }
 
@@ -18,7 +18,7 @@ pipeline {
         BYTEBASE_URL = 'https://bytebase.apps.drgdevlab.com'
         BYTEBASE_PROJECT = 'projects/cr7-allgoal-kvi1'
         BYTEBASE_FILE_PATTERN = 'migrations/V*.sql'
-        BYTEBASE_TARGETS = 'projects/cr7-allgoal-kvi1/instances/oracle-cloud-free-sge0/databases/CR7ALLGOALS_APP'
+        BYTEBASE_TARGETS = 'instances/oracle-cloud-free-sge0/databases/CR7ALLGOALS_APP'
         BYTEBASE_OUTPUT = '.jenkins/bytebase-metadata.json'
         BYTEBASE_TEST_STAGE = 'environments/test'
         BYTEBASE_PROD_STAGE = 'environments/prod'
