@@ -36,13 +36,15 @@ Application rollback is not database rollback. Prefer expand → deploy app → 
 
 ## POC contents
 
-The migrations demonstrate:
+The initial POC release contains only schema changes that can be checked
+against the current target database:
 
 - `V1.0.0.0`: create `BB_POC_V1_RELEASE_FLOW` (DDL)
 - `V1.0.0.1`: add `STATUS` without modifying migration 1 (DDL)
-- `V1.0.0.2`: seed one row (DML)
-- `V1.0.0.3`: create `BB_POC_V1_RELEASE_FLOW_V` (programmable object, DDL)
-- `V1.0.0.4`: update the view using `CREATE OR REPLACE` (new DDL revision)
+
+Seed DML and views are deliberately deferred to a later migration after this
+table has been rolled out. This lets the SQL Review DML dry-run validate
+against an existing target object.
 
 The current CR7 application runner in `cr7allgoals-be/packages/db` is existing application-owned infrastructure and is not altered by this POC. It remains a migration path to reconcile before production cutover; two authorities must not apply the same schema changes.
 

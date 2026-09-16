@@ -1,5 +1,0 @@
--- CR7 All Goals POC migration V1.0.0.3.
--- Create the initial programmable-object view.
-CREATE OR REPLACE VIEW BB_POC_V1_RELEASE_FLOW_V AS
-SELECT ID, NAME, STATUS, CREATED_AT
-FROM BB_POC_V1_RELEASE_FLOW;
