@@ -1,0 +1,9 @@
+# Non-secret Bytebase settings for the develop rollout.
+# Credentials remain managed by Jenkins Credentials.
+bytebase:
+  url: "https://bytebase.apps.drgdevlab.com"
+  project: "projects/cr7-allgoal-kvi1"
+  file_pattern: "migrations/V*.sql"
+  targets: "instances/oracle-cloud-free-sge0/databases/CR7ALLGOALS_APP"
+  output: ".jenkins/bytebase-metadata.json"
+  develop_stage: "environments/develop"

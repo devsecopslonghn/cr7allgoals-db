@@ -146,12 +146,7 @@ pipeline {
     }
 
     environment {
-        BYTEBASE_URL = 'https://bytebase.apps.drgdevlab.com'
-        BYTEBASE_PROJECT = 'projects/cr7-allgoal-kvi1'
-        BYTEBASE_FILE_PATTERN = 'migrations/V*.sql'
-        BYTEBASE_TARGETS = 'instances/oracle-cloud-free-sge0/databases/CR7ALLGOALS_APP'
-        BYTEBASE_OUTPUT = '.jenkins/bytebase-metadata.json'
-        BYTEBASE_DEVELOP_STAGE = 'environments/develop'
+        BYTEBASE_CONFIG_FILE = 'environments/develop.yaml'
         GITHUB_API_URL = 'https://api.github.com'
     }
 
@@ -160,6 +155,33 @@ pipeline {
             steps {
                 checkout scm
                 sh 'mkdir -p .jenkins'
+            }
+        }
+
+        stage('Load Environment Config') {
+            steps {
+                script {
+                    def config = readYaml(file: env.BYTEBASE_CONFIG_FILE)
+                    def bytebase = config instanceof Map && config.bytebase instanceof Map ? config.bytebase : [:]
+                    def required = [
+                        url: 'BYTEBASE_URL',
+                        project: 'BYTEBASE_PROJECT',
+                        file_pattern: 'BYTEBASE_FILE_PATTERN',
+                        targets: 'BYTEBASE_TARGETS',
+                        output: 'BYTEBASE_OUTPUT',
+                        develop_stage: 'BYTEBASE_DEVELOP_STAGE'
+                    ]
+
+                    required.each { key, variable ->
+                        def value = bytebase[key]
+                        if (value == null || value.toString().trim().isEmpty()) {
+                            error("Missing bytebase.${key} in ${env.BYTEBASE_CONFIG_FILE}")
+                        }
+                        env[variable] = value.toString()
+                    }
+
+                    echo "Loaded Bytebase environment config: ${env.BYTEBASE_CONFIG_FILE}"
+                }
             }
         }
 
