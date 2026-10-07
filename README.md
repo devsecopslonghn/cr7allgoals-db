@@ -1,6 +1,12 @@
 # CR7 All Goals Database
 
-Database change source for CR7 All Goals Oracle, operated through Bytebase Community migration-based GitOps.
+Bytebase Community migration-based GitOps POC for CR7 All Goals Oracle.
+
+**Current application:** [CR7 All Goals](https://cr7allgoals.com/) is a public
+website with no login or VPN dependency. Application schema migrations remain
+owned by the [backend migration authority](https://github.com/devsecopslonghn/cr7allgoals-harness/blob/master/docs/adr/008-backend-migration-authority.md).
+This repository exercises separate `BB_POC_` objects; it does not replace the
+application migration authority or run during an application rollout.
 
 ## Developer: change the database in one minute
 
@@ -54,4 +60,4 @@ The current CR7 application runner in `cr7allgoals-be/packages/db` is existing a
 
 The DEV rollout is recorded in `docs/POC-EVIDENCE.md`. Multi-environment promotion remains untested. Record the Bytebase revision and schema verification query output there after reviewing the completed task.
 
-See [DATABASE-SOURCE-DECISION.md](../DATABASE-SOURCE-DECISION.md) for the gate and [OPERATING-MODEL.md](docs/OPERATING-MODEL.md) for the end-to-end model.
+See [SQL review guidance](.bytebase/sql-review.md) for this POC. The application migration authority linked above governs application schema changes.
