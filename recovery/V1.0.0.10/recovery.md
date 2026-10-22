@@ -67,12 +67,12 @@ ORDER BY COLUMN_ID;
 
 SELECT COUNT(*) AS POC_ROW_COUNT
 FROM CR7ALLGOALS_APP.BB_POC_E2E_20261022_A
-WHERE DEMO_ID IS NOT NULL;
+WHERE ID IS NOT NULL;
 ```
 
 Expected after a complete rollout: one matching table, three columns
-(`DEMO_ID`, `DEMO_LABEL`, `CREATED_AT`) with `NULLABLE = 'N'`, a primary key
-on `DEMO_ID`, comments matching the migration, and zero rows. Confirm
+(`ID`, `DEMO_LABEL`, `CREATED_AT`) with `NULLABLE = 'N'`, a primary key
+on `ID`, comments matching the migration, and zero rows. Confirm
 V1.0.0.10 in Bytebase revisions and link PR/source SHA, merge SHA, Jenkins
 build and Bytebase Plan/task in the evidence report.
 
